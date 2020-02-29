@@ -20,7 +20,7 @@
 
 /****************** User Config ***************************/
 /***      Set this radio as radio number 0 or 1         ***/
-bool radioNumber = 1;
+bool radioNumber = 0;
 
 /* Hardware configuration: Set up nRF24L01 radio on SPI bus plus pins 7 & 8 */
 RF24 radio(10,9);
@@ -32,7 +32,7 @@ byte addresses[][6] = {"1Node","2Node"};              // Radio pipe addresses fo
 // in this system.  Doing so greatly simplifies testing.  
 typedef enum { role_ping_out = 1, role_pong_back } role_e;                 // The various roles supported by this sketch
 const char* role_friendly_name[] = { "invalid", "Ping out", "Pong back"};  // The debug-friendly names of those roles
-role_e role = role_pong_back;                                              // The role of the current running sketch
+role_e role = role_ping_out;                                              // The role of the current running sketch
 
 byte counter = 1;                                                          // A single byte to keep track of the data being sent back and forth
 unsigned int vcycle = 0; //unsigned so that it will wrap
@@ -123,7 +123,7 @@ void loop(void) {
         }else{      
             while(radio.available() ){                      // If an ack with payload was received
                 radio.read( &gotByte, 2 );                  // Read it, and display the response time
-                pos = int(gotByte[0]/10)+int(VAMT*sin(0.01*float(vcycle%628))/10);  //modulo at n to make sure it wraps nicely at 2pi, multiplier set at 2*pi/n
+                pos = int(gotByte[0]/10)+int(VAMT*sin(0.01*(float(255-gotByte[1])/10.0-11.5)*float(vcycle%628))/10);  //modulo at n to make sure it wraps nicely at 2pi, multiplier set at 2*pi/n
                 //pos = gotByte/10;
                 Serial.print(F("s r0xca ")); //update command
                 Serial.print(pos);
