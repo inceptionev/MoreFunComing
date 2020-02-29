@@ -14,13 +14,13 @@
  
 #include <SPI.h>
 #include "RF24.h"
-#define CDLY 1
+#define CDLY 2
 #define SDLY 500
 #define VAMT 50.0 //in 255 scale
 
 /****************** User Config ***************************/
 /***      Set this radio as radio number 0 or 1         ***/
-bool radioNumber = 0;
+bool radioNumber = 1;
 
 /* Hardware configuration: Set up nRF24L01 radio on SPI bus plus pins 7 & 8 */
 RF24 radio(10,9);
@@ -32,41 +32,47 @@ byte addresses[][6] = {"1Node","2Node"};              // Radio pipe addresses fo
 // in this system.  Doing so greatly simplifies testing.  
 typedef enum { role_ping_out = 1, role_pong_back } role_e;                 // The various roles supported by this sketch
 const char* role_friendly_name[] = { "invalid", "Ping out", "Pong back"};  // The debug-friendly names of those roles
-role_e role = role_ping_out;                                              // The role of the current running sketch
+role_e role = role_pong_back;                                              // The role of the current running sketch
 
 byte counter = 1;                                                          // A single byte to keep track of the data being sent back and forth
 unsigned int vcycle = 0; //unsigned so that it will wrap
 
 
 void setup(){
-  delay(4000); //wait for Accelnet to boot up
-  Serial.begin(9600); //Accelnet starts in 9600 buad mode
-  Serial.print(F("s r0x90 115200\r")); //set Accelnet baud rate
-  delay(SDLY);
-  Serial.begin(115200); //switch to 115200 baud rate
-  //Serial.print(F("s r0x24 21\r")); //Enable in trajectory generator position mode
-  //delay(100);
-  Serial.print(F("t 2\r")); //tell Accelnet to home in current position
-  delay(SDLY); //wait for home to complete
-  Serial.print(F("s r0xc8 0\r")); //absolute position, trapezoidal profile
-  delay(CDLY);
-  Serial.print(F("s r0xca 2\r")); //demo indicator
-  delay(CDLY);
-  Serial.print(F("t 1\r")); //execute command
-  delay(SDLY);
-  Serial.print(F("s r0xca 0\r")); //demo indicator
-  delay(CDLY);
-  Serial.print(F("t 1\r")); //execute command
-  delay(SDLY);
-  Serial.print(F("s r0xca 2\r")); //demo indicator
-  delay(CDLY);
-  Serial.print(F("t 1\r")); //execute command
-  delay(SDLY);
-  Serial.print(F("s r0xca 0\r")); //demo indicator
-  delay(CDLY);
-  Serial.print(F("t 1\r")); //execute command
-  delay(SDLY);
+  Serial.begin(115200);
   
+  if (role == role_ping_out){
+    //SETUP ACCELNET CONTROLLER
+    Serial.begin(9600);
+    delay(4000); //wait for Accelnet to boot up
+    Serial.print(F("s r0x90 115200\r")); //set Accelnet baud rate
+    delay(SDLY);
+    Serial.begin(115200); //switch to 115200 baud rate
+    //Serial.print(F("s r0x24 21\r")); //Enable in trajectory generator position mode
+    //delay(100);
+    Serial.print(F("t 2\r")); //tell Accelnet to home in current position
+    delay(SDLY); //wait for home to complete
+    Serial.print(F("s r0xc8 0\r")); //absolute position, trapezoidal profile
+    delay(CDLY);
+    Serial.print(F("s r0xca 2\r")); //demo indicator
+    delay(CDLY);
+    Serial.print(F("t 1\r")); //execute command
+    delay(SDLY);
+    Serial.print(F("s r0xca 0\r")); //demo indicator
+    delay(CDLY);
+    Serial.print(F("t 1\r")); //execute command
+    delay(SDLY);
+    Serial.print(F("s r0xca 2\r")); //demo indicator
+    delay(CDLY);
+    Serial.print(F("t 1\r")); //execute command
+    delay(SDLY);
+    Serial.print(F("s r0xca 0\r")); //demo indicator
+    delay(CDLY);
+    Serial.print(F("t 1\r")); //execute command
+    delay(SDLY);
+  }
+
+    
   //Serial.println(F("RF24/examples/GettingStarted_CallResponse"));
   //Serial.println(F("*** PRESS 'T' to begin transmitting to the other node"));
  
@@ -74,7 +80,8 @@ void setup(){
   
   //pinMode(3, OUTPUT); //setup analog output pin
   radio.begin();
-
+  radio.setPALevel(RF24_PA_HIGH);
+  
   radio.enableAckPayload();                     // Allow optional ack payloads
   radio.enableDynamicPayloads();                // Ack payloads are dynamic payloads
   
@@ -98,7 +105,7 @@ void loop(void) {
 
   if (role == role_ping_out){                               // Radio is in ping mode
 
-    byte gotByte;                                           // Initialize a variable for the incoming response
+    byte gotByte[2];                                           // Initialize a variable for the incoming response
     int pos;  //pos should be an int so it doesn't get tripped up by negative values.
     byte vibe;
     
@@ -115,8 +122,8 @@ void loop(void) {
             //Serial.println(F(" microseconds"));     
         }else{      
             while(radio.available() ){                      // If an ack with payload was received
-                radio.read( &gotByte, 1 );                  // Read it, and display the response time
-                pos = int(gotByte/10)+int(VAMT*sin(0.01*float(vcycle%628))/10);  //modulo at n to make sure it wraps nicely at 2pi, multiplier set at 2*pi/n
+                radio.read( &gotByte, 2 );                  // Read it, and display the response time
+                pos = int(gotByte[0]/10)+int(VAMT*sin(0.01*float(vcycle%628))/10);  //modulo at n to make sure it wraps nicely at 2pi, multiplier set at 2*pi/n
                 //pos = gotByte/10;
                 Serial.print(F("s r0xca ")); //update command
                 Serial.print(pos);
@@ -152,15 +159,18 @@ void loop(void) {
 /****************** Pong Back Role ***************************/
 
   if ( role == role_pong_back ) {
-    byte pipeNo, gotByte, yreply;                          // Declare variables for the pipe and the byte received
+    byte pipeNo, gotByte, yreply[2];                          // Declare variables for the pipe and the byte received
     while( radio.available(&pipeNo)){              // Read all available payloads
       radio.read( &gotByte, 1 );                   
                                                    // Since this is a call-response. Respond directly with an ack payload.
       gotByte += 1;                                // Ack payloads are much more efficient than switching to transmit mode to respond to a call
-      yreply = lowByte(analogRead(0)>>2);
-      radio.writeAckPayload(pipeNo,&yreply, 1 );  // This can be commented out to send empty payloads.
+      yreply[0] = lowByte(analogRead(0)>>2);
+      yreply[1] = lowByte(analogRead(1)>>2);
+      radio.writeAckPayload(pipeNo,&yreply, 2 );  // This can be commented out to send empty payloads.
       Serial.print(F("Loaded next response "));
-      Serial.println(gotByte);  
+      Serial.print(yreply[0]);
+      Serial.print(" ");
+      Serial.println(yreply[1]);  
    }
  }
 
