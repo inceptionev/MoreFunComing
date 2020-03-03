@@ -80,7 +80,9 @@ void setup(){
   
   //pinMode(3, OUTPUT); //setup analog output pin
   radio.begin();
-  radio.setPALevel(RF24_PA_HIGH);
+  radio.setPALevel(RF24_PA_MAX);
+  radio.setChannel(72);
+  radio.setDataRate(RF24_250KBPS);
   
   radio.enableAckPayload();                     // Allow optional ack payloads
   radio.enableDynamicPayloads();                // Ack payloads are dynamic payloads
