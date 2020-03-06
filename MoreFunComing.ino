@@ -16,7 +16,7 @@
 #include "RF24.h"
 #define CDLY 2
 #define SDLY 500
-#define VAMT 50.0 //in 255 scale
+//#define VAMT 50.0 //in 255 scale
 
 /****************** User Config ***************************/
 /***      Set this radio as radio number 0 or 1         ***/
@@ -125,7 +125,8 @@ void loop(void) {
         }else{      
             while(radio.available() ){                      // If an ack with payload was received
                 radio.read( &gotByte, 2 );                  // Read it, and display the response time
-                pos = int(gotByte[0]/10)+int(VAMT*sin(0.01*(float(255-gotByte[1])/10.0-11.5)*float(vcycle%628))/10);  //modulo at n to make sure it wraps nicely at 2pi, multiplier set at 2*pi/n
+                //pos = int(gotByte[0]/10)+int(VAMT*sin(0.01*(float(255-gotByte[1])/10.0-11.5)*float(vcycle%628))/10);  //modulo at n to make sure it wraps nicely at 2pi, multiplier set at 2*pi/n
+                pos = int(gotByte[0]/10)+int(((255-gotByte[1])/2-20)*sin(0.01*vcycle))/10;  //modulo at n to make sure it wraps nicely at 2pi, multiplier set at 2*pi/n
                 //pos = gotByte/10;
                 Serial.print(F("s r0xca ")); //update command
                 Serial.print(pos);
@@ -133,11 +134,11 @@ void loop(void) {
                 delay(CDLY);
                 Serial.print(F("t 1\r")); //execute command
                 delay(CDLY);
-                if(vibe=0){ 
-                  vibe=VAMT;
-                }else{
-                  vibe=0;
-                }
+                //if(vibe=0){ 
+                //  vibe=VAMT;
+                //}else{
+                //  vibe=0;
+                //}
                 
                 //analogWrite(3, gotByte);
                 //unsigned long timer = micros();
@@ -148,7 +149,8 @@ void loop(void) {
                 //Serial.print(timer-time);
                 //Serial.println(F(" microseconds"));
                 counter++;                                  // Increment the counter variable
-                vcycle++;
+                //vcycle++;
+                vcycle=(vcycle+int((255-gotByte[1])/5.0-24.5))%628;//equals 2pi when it reaches 628
             }
         }
     
