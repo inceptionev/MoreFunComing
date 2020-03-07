@@ -90,7 +90,7 @@ void setup(){
   
   if(radioNumber > 0){                          // i.e., radio is a controller, listen on numbered address, transmit back on address[0]
     radio.openWritingPipe(addresses[0]);        // Both radios listen on the same pipes by default, but opposite addresses
-    radio.openReadingPipe(1,addresses[radioNumber]);      // Open a reading pipe on address 0, pipe 1
+    radio.openReadingPipe(1,addresses[radioNumber]);      // Open a reading pipe on address per radionumber, pipe 1
   }else{                                        // i.e., if radio is the base, listen on address[0], transmit round-robin on addresses 1-4
     radio.openWritingPipe(addresses[1]);        // start on address[1]
     radio.openReadingPipe(1,addresses[0]);      // listen for replies on address[0]
@@ -134,30 +134,15 @@ void loop(void) {
                 Serial.print("\r"); //carriage return
                 delay(CDLY);
                 Serial.print(F("t 1\r")); //execute command
-                delay(CDLY);
-                //if(vibe=0){ 
-                //  vibe=VAMT;
-                //}else{
-                //  vibe=0;
-                //}
-                
-                //analogWrite(3, gotByte);
-                //unsigned long timer = micros();
-                
-                //Serial.print(F("Got response "));
-                //Serial.print(gotByte);
-                //Serial.print(F(" round-trip delay: "));
-                //Serial.print(timer-time);
-                //Serial.println(F(" microseconds"));
+                delay(CDLY);               
                 counter++;                                  // Increment the counter variable
-                //vcycle++;
                 vcycle=(vcycle+int((255-gotByte[1])/5.0-24.5))%628;//equals 2pi when it reaches 628
             }
         }
     
-    }else{        }//Serial.println(F("Sending failed.")); }          // If no ack response, sending failed
+    }else{        }          // If no ack response, sending failed
     
-    //delay(1000);  // Try again later
+    
   }
 
 
