@@ -20,13 +20,14 @@
 
 /****************** User Config ***************************/
 /***      Set this radio as radio number 0 or 1         ***/
-bool radioNumber = 0;
+byte radioNumber = 0;
 
 /* Hardware configuration: Set up nRF24L01 radio on SPI bus plus pins 7 & 8 */
 RF24 radio(10,9);
 /**********************************************************/
                                                                            // Topology
-byte addresses[][6] = {"1Node","2Node"};              // Radio pipe addresses for the 2 nodes to communicate.
+byte addresses[][6] = {"1Node","2Node","3Node","4Node","5Node"};                           // 2node-5node are base tx to select a controller, round-robin style, 1Node is the response pipe, 
+//byte addresses[][6] = {"1Node","2Node"};                                 // Radio pipe addresses for the 2 nodes to communicate.
 
 // Role management: Set up role.  This sketch uses the same software for all the nodes
 // in this system.  Doing so greatly simplifies testing.  
@@ -48,8 +49,8 @@ void setup(){
     Serial.print(F("s r0x90 115200\r")); //set Accelnet baud rate
     delay(SDLY);
     Serial.begin(115200); //switch to 115200 baud rate
-    //Serial.print(F("s r0x24 21\r")); //Enable in trajectory generator position mode
-    //delay(100);
+    Serial.print(F("s r0x24 21\r")); //Enable in trajectory generator position mode
+    delay(CDLY);
     Serial.print(F("t 2\r")); //tell Accelnet to home in current position
     delay(SDLY); //wait for home to complete
     Serial.print(F("s r0xc8 0\r")); //absolute position, trapezoidal profile
@@ -87,12 +88,12 @@ void setup(){
   radio.enableAckPayload();                     // Allow optional ack payloads
   radio.enableDynamicPayloads();                // Ack payloads are dynamic payloads
   
-  if(radioNumber){
-    radio.openWritingPipe(addresses[1]);        // Both radios listen on the same pipes by default, but opposite addresses
-    radio.openReadingPipe(1,addresses[0]);      // Open a reading pipe on address 0, pipe 1
-  }else{
-    radio.openWritingPipe(addresses[0]);
-    radio.openReadingPipe(1,addresses[1]);
+  if(radioNumber > 0){                          // i.e., radio is a controller, listen on numbered address, transmit back on address[0]
+    radio.openWritingPipe(addresses[0]);        // Both radios listen on the same pipes by default, but opposite addresses
+    radio.openReadingPipe(1,addresses[radioNumber]);      // Open a reading pipe on address 0, pipe 1
+  }else{                                        // i.e., if radio is the base, listen on address[0], transmit round-robin on addresses 1-4
+    radio.openWritingPipe(addresses[1]);        // start on address[1]
+    radio.openReadingPipe(1,addresses[0]);      // listen for replies on address[0]
   }
   radio.startListening();                       // Start listening  
   
