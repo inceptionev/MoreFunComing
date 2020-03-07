@@ -16,6 +16,7 @@
 #include "RF24.h"
 #define CDLY 2
 #define SDLY 500
+#define NUM_RADIOS 4 //set the number of controllers to look for
 //#define VAMT 50.0 //in 255 scale
 
 /****************** User Config ***************************/
@@ -135,7 +136,7 @@ void loop(void) {
                 delay(CDLY);
                 Serial.print(F("t 1\r")); //execute command
                 delay(CDLY);               
-                counter++;                                  // Increment the counter variable
+                counter = (counter + 1)%NUM_RADIOS;                                  // Increment the counter variable, modulo number of radios
                 vcycle=(vcycle+int((255-gotByte[1])/5.0-24.5))%628;//equals 2pi when it reaches 628
             }
         }
