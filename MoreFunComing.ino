@@ -37,7 +37,7 @@ const char* role_friendly_name[] = { "invalid", "Ping out", "Pong back"};  // Th
 role_e role = role_ping_out;                                              // The role of the current running sketch
 
 byte counter = 1;                                                          // A single byte to keep track of the data being sent back and forth
-unsigned int vcycle = 0; //unsigned so that it will wrap
+unsigned int vcycle[NUM_RADIOS]; //unsigned so that it will wrap
 
 
 void setup(){
@@ -74,9 +74,6 @@ void setup(){
     delay(SDLY);
   }
 
-    
-  //Serial.println(F("RF24/examples/GettingStarted_CallResponse"));
-  //Serial.println(F("*** PRESS 'T' to begin transmitting to the other node"));
  
   // Setup and configure radio
   
@@ -85,6 +82,7 @@ void setup(){
   radio.setPALevel(RF24_PA_MAX);
   radio.setChannel(72);
   radio.setDataRate(RF24_250KBPS);
+  radio.setRetries(0,0);  //no retries for round-robin
   
   radio.enableAckPayload();                     // Allow optional ack payloads
   radio.enableDynamicPayloads();                // Ack payloads are dynamic payloads
@@ -110,39 +108,37 @@ void loop(void) {
   if (role == role_ping_out){                               // Radio is in ping mode
 
     byte gotByte[2];                                           // Initialize a variable for the incoming response
-    int pos;  //pos should be an int so it doesn't get tripped up by negative values.
-    byte vibe;
+    int pos[NUM_RADIOS];  //pos should be an int so it doesn't get tripped up by negative values.
+    int spos;
     
     radio.stopListening();                                  // First, stop listening so we can talk.      
-    //Serial.print(F("Now sending "));                         // Use a simple byte counter as payload
-    //Serial.println(counter);
-    
-    //unsigned long time = micros();                          // Record the current microsecond count   
-                                                            
-    if ( radio.write(&counter,1) ){                         // Send the counter variable to the other radio 
-        if(!radio.available()){                             // If nothing in the buffer, we got an ack but it is blank
-            //Serial.print(F("Got blank response. round-trip delay: "));
-            //Serial.print(micros()-time);
-            //Serial.println(F(" microseconds"));     
-        }else{      
-            while(radio.available() ){                      // If an ack with payload was received
-                radio.read( &gotByte, 2 );                  // Read it, and display the response time
-                //pos = int(gotByte[0]/10)+int(VAMT*sin(0.01*(float(255-gotByte[1])/10.0-11.5)*float(vcycle%628))/10);  //modulo at n to make sure it wraps nicely at 2pi, multiplier set at 2*pi/n
-                pos = int(gotByte[0]/10)+int(((255-gotByte[1])/2-20)*sin(0.01*vcycle))/10;  //modulo at n to make sure it wraps nicely at 2pi, multiplier set at 2*pi/n
-                //pos = gotByte/10;
-                Serial.print(F("s r0xca ")); //update command
-                Serial.print(pos);
-                Serial.print("\r"); //carriage return
-                delay(CDLY);
-                Serial.print(F("t 1\r")); //execute command
-                delay(CDLY);               
-                counter = (counter + 1)%NUM_RADIOS;                                  // Increment the counter variable, modulo number of radios
-                vcycle=(vcycle+int((255-gotByte[1])/5.0-24.5))%628;//equals 2pi when it reaches 628
-            }
-        }
-    
-    }else{        }          // If no ack response, sending failed
-    
+ 
+    for(int counter = 0; counter < NUM_RADIOS; counter++) {   //ping controllers round-robin style
+      radio.openWritingPipe(addresses[counter+1]); 
+      if ( radio.write(&counter,1) ){                         // Send the counter variable to the other radio 
+          if(!radio.available()){                             // If nothing in the buffer, we got an ack but it is blank                  
+          }else{      
+              while(radio.available() ){                      // If an ack with payload was received
+                  radio.read( &gotByte, 2 );                  // Read it
+                  pos[counter] = int(gotByte[0]/10)+int(((255-gotByte[1])/2-20)*sin(0.01*vcycle[counter]))/10;  //modulo at n to make sure it wraps nicely at 2pi, multiplier set at 2*pi/n                           
+                  vcycle[counter]=(vcycle[counter]+int((255-gotByte[1])/5.0-24.5))%628;//equals 2pi when it reaches 628
+              }
+          }
+      
+      }else{        }          // If no ack response, sending failed
+    }
+
+    for(int counter = 0; counter < NUM_RADIOS; counter++) {
+      spos =+ pos[counter];
+    }
+    spos = spos/NUM_RADIOS;
+    Serial.print(F("s r0xca ")); //update command
+    Serial.print(spos);
+    Serial.print("\r"); //carriage return
+    delay(CDLY);
+    Serial.print(F("t 1\r")); //execute command
+    delay(CDLY);     
+      
     
   }
 
@@ -164,26 +160,4 @@ void loop(void) {
       Serial.println(yreply[1]);  
    }
  }
-
-
-
-/****************** Change Roles via Serial Commands ***************************/
-
-  if ( Serial.available() )
-  {
-    char c = toupper(Serial.read());
-    if ( c == 'T' && role == role_pong_back ){      
-      Serial.println(F("*** CHANGING TO TRANSMIT ROLE -- PRESS 'R' TO SWITCH BACK"));
-      role = role_ping_out;  // Become the primary transmitter (ping out)
-      counter = 1;
-   }else
-    if ( c == 'R' && role == role_ping_out ){
-      Serial.println(F("*** CHANGING TO RECEIVE ROLE -- PRESS 'T' TO SWITCH BACK"));      
-       role = role_pong_back; // Become the primary receiver (pong back)
-       radio.startListening();
-       counter = 1;
-       radio.writeAckPayload(1,&counter,1);
-       
-    }
-  }
 }
