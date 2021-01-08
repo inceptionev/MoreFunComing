@@ -158,15 +158,18 @@ void loop() {
   //Left Column
   M5.Lcd.fillRect(70, 170-round(140*pos0/FSCOUNTS), 20, round(140*pos0/FSCOUNTS), WHITE);
   M5.Lcd.fillRect(70, 30, 20, 140-round(140*pos0/FSCOUNTS), BLACK);
-  M5.Lcd.setCursor(17,173);
   
   //Middle Column
   M5.Lcd.fillRect(150, 170-round(140*pos1/FSCOUNTS), 20, round(140*pos1/FSCOUNTS), WHITE);
   M5.Lcd.fillRect(150, 30, 20, 140-round(140*pos1/FSCOUNTS), BLACK);
-  M5.Lcd.setCursor(17,173);
 
+  //Middle Column
+  M5.Lcd.fillRect(230, 170-round(140*pos2/FSCOUNTS), 20, round(140*pos2/FSCOUNTS), WHITE);
+  M5.Lcd.fillRect(230, 30, 20, 140-round(140*pos2/FSCOUNTS), BLACK);
   
-  M5.Lcd.printf("Cyc = %d",millis()-prevTick);
+  //display current cycle time
+  M5.Lcd.setCursor(0,5);
+  M5.Lcd.printf("%d",millis()-prevTick);
   prevTick = millis();
 
   if (cur_button == 0 && last_button == 1) {
