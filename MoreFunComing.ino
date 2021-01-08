@@ -82,7 +82,7 @@ void setup(){
   radio.setPALevel(RF24_PA_MAX);
   radio.setChannel(72);
   radio.setDataRate(RF24_250KBPS);
-  radio.setRetries(0,0);  //no retries for round-robin
+  radio.setRetries(0,1);  //no retries for round-robin
   
   radio.enableAckPayload();                     // Allow optional ack payloads
   radio.enableDynamicPayloads();                // Ack payloads are dynamic payloads
@@ -108,19 +108,20 @@ void loop(void) {
   if (role == role_ping_out){                               // Radio is in ping mode
 
     byte gotByte[2];                                           // Initialize a variable for the incoming response
-    int pos[NUM_RADIOS];  //pos should be an int so it doesn't get tripped up by negative values.
-    int spos;
+    int pos[NUM_RADIOS]={0,0,0,0};  //pos should be an int so it doesn't get tripped up by negative values.
+    int spos=0;
     
     radio.stopListening();                                  // First, stop listening so we can talk.      
  
     for(int counter = 0; counter < NUM_RADIOS; counter++) {   //ping controllers round-robin style
-      radio.openWritingPipe(addresses[counter+1]); 
+      radio.openWritingPipe(addresses[1]); 
       if ( radio.write(&counter,1) ){                         // Send the counter variable to the other radio 
           if(!radio.available()){                             // If nothing in the buffer, we got an ack but it is blank                  
           }else{      
               while(radio.available() ){                      // If an ack with payload was received
                   radio.read( &gotByte, 2 );                  // Read it
-                  pos[counter] = int(gotByte[0]/10)+int(((255-gotByte[1])/2-20)*sin(0.01*vcycle[counter]))/10;  //modulo at n to make sure it wraps nicely at 2pi, multiplier set at 2*pi/n                           
+                  //pos[counter] = int(gotByte[0]/10)+int(((255-gotByte[1])/2-20)*sin(0.01*vcycle[counter]))/10;  //modulo at n to make sure it wraps nicely at 2pi, multiplier set at 2*pi/n                           
+                  pos[counter] = int(gotByte[0]/10);
                   vcycle[counter]=(vcycle[counter]+int((255-gotByte[1])/5.0-24.5))%628;//equals 2pi when it reaches 628
               }
           }
@@ -129,7 +130,7 @@ void loop(void) {
     }
 
     for(int counter = 0; counter < NUM_RADIOS; counter++) {
-      spos =+ pos[counter];
+      spos = spos + pos[counter];
     }
     spos = spos/NUM_RADIOS;
     Serial.print(F("s r0xca ")); //update command
