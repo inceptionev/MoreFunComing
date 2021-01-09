@@ -32,6 +32,8 @@ int a2 = 0;
 float f0 = 0.1;
 float f1 = 0.1;
 float f2 = 0.1;
+float theta1 = 0;
+float theta2 = 0;
 char sBuffer[10];
 int h = 0;
 
@@ -186,8 +188,12 @@ void loop() {
   //pos = round(amplitude*sin(millis()/160.f))+127; // + round(16*sin(millis()/10.f));
   pos0 = a0;
   pos0 = constrain(pos0, PMIN, PMAX);
-  pos1 = round(a1*sin(f1*millis()/160.f))+FSCOUNTS/2;
+  
+  theta1 += f1*(millis()-prevTick)/160.f; //to make freq transitions smooth
+  pos1 = round(a1*sin(theta1))+FSCOUNTS/2;
   pos1 = constrain(pos1, PMIN, PMAX);
+  
+  theta2 += f2*(millis()-prevTick)/160.f;
   pos2 = round(a2*sin(f2*millis()/160.f))+FSCOUNTS/2;
   pos2 = constrain(pos2, PMIN, PMAX);
 
@@ -196,6 +202,11 @@ void loop() {
 
   //dacWrite(G26, pos);
   Serial2.printf("s r0xca %d\rt 1\r", pos); //send position
+
+  //display current cycle time
+  M5.Lcd.setCursor(0,5);
+  M5.Lcd.printf("%d",millis()-prevTick);
+  prevTick = millis();
 
   //Total Column
   M5.Lcd.fillRect(20, 170-round(140*pos/FSCOUNTS), 20, round(140*pos/FSCOUNTS), WHITE);
@@ -213,10 +224,7 @@ void loop() {
   M5.Lcd.fillRect(230, 170-round(140*pos2/FSCOUNTS), 20, round(140*pos2/FSCOUNTS), WHITE);
   M5.Lcd.fillRect(230, 30, 20, 140-round(140*pos2/FSCOUNTS), BLACK);
   
-  //display current cycle time
-  M5.Lcd.setCursor(0,5);
-  M5.Lcd.printf("%d",millis()-prevTick);
-  prevTick = millis();
+  
 
   if (cur_button == 0 && last_button == 1) {
     PARAMSTATE++;
@@ -257,7 +265,7 @@ void loop() {
       break;
 
     case 5: //case 4 exit state
-      h = sprintf(sBuffer,"f:%.1f  ",f1);
+      h = sprintf(sBuffer,"f:%.1f ",f1);
       writeParam(4,sBuffer,false);
       PARAMSTATE = 0;
       break;
