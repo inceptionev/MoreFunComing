@@ -12,13 +12,20 @@
 #define Faces_Encoder_I2C_ADDR     0X5E
 
 //process variables
-int amplitude = 0;
 int prevTick = 0;
 int pos = 0;
 int pos0 = 0;
 int pos1 = 0;
 int pos2 = 0;
-float freq = 0;
+int a0 = 0;
+int a1 = 0;
+int a2 = 0;
+float f0 = 0;
+float f1 = 0;
+float f2 = 0;
+char sBuffer[10];
+int h = 0;
+
 
 //state variables
 int PARAMSTATE = 0;
@@ -122,14 +129,26 @@ void setup() {
   delay(CDLY);
   */
 
+  //Begin Main program UI
   M5.Lcd.clear(BGCOLOR);
 
+  //Title Block
   M5.Lcd.fillRect(0, 0, 320, 25, HLCOLOR);
   M5.Lcd.setCursor(70,5);
   M5.Lcd.setTextSize(2);
   M5.Lcd.setTextColor(WHITE, HLCOLOR);
   M5.Lcd.printf("More Fun Coming");
   M5.Lcd.setTextColor(WHITE, BGCOLOR);
+
+  //Parameter Display
+  writeParam(0,"POS",false);
+  writeParam(1,"a:0",false);
+  writeParam(2,"SIN",false);
+  writeParam(3,"a:0",false);
+  writeParam(4,"f:0.0",false);
+  writeParam(5,"SIN",false);
+  writeParam(6,"a:0",false);
+  writeParam(7,"f:0.0",false);
   
   //timer
   prevTick = millis();
@@ -145,16 +164,19 @@ void loop() {
   //freq = 20;
 
   //pos = round(amplitude*sin(millis()/160.f))+127; // + round(16*sin(millis()/10.f));
-  pos0 = 0;
-  pos1 = round(amplitude*sin(freq*millis()/160.f))+FSCOUNTS/2;
-  pos2 = 0;
+  pos0 = a0;
+  pos1 = round(a1*sin(f1*millis()/160.f))+FSCOUNTS/2;
+  pos2 = round(a2*sin(f2*millis()/160.f))+FSCOUNTS/2;
 
   pos = pos0 + pos1 + pos2;
 
   //dacWrite(G26, pos);
   Serial2.printf("s r0xca %d\rt 1\r", pos); //send position
 
-
+  //Total Column
+  M5.Lcd.fillRect(20, 170-round(140*pos/FSCOUNTS), 20, round(140*pos/FSCOUNTS), WHITE);
+  M5.Lcd.fillRect(20, 30, 20, 140-round(140*pos/FSCOUNTS), BLACK);
+  
   //Left Column
   M5.Lcd.fillRect(70, 170-round(140*pos0/FSCOUNTS), 20, round(140*pos0/FSCOUNTS), WHITE);
   M5.Lcd.fillRect(70, 30, 20, 140-round(140*pos0/FSCOUNTS), BLACK);
@@ -174,7 +196,7 @@ void loop() {
 
   if (cur_button == 0 && last_button == 1) {
     PARAMSTATE++;
-    PARAMSTATE = PARAMSTATE % 3;
+    PARAMSTATE = PARAMSTATE % 6;
   }
   last_button = cur_button;
 
@@ -182,43 +204,93 @@ void loop() {
   
   switch(PARAMSTATE) {
     case 0:
-      M5.Lcd.setTextColor(WHITE, HLCOLOR);
-      M5.Lcd.setCursor(140,178);
-      M5.Lcd.printf("SIN");
-      M5.Lcd.setTextColor(WHITE, BGCOLOR);
-      M5.Lcd.setCursor(130,197);
-      M5.Lcd.printf("a:%d  ",int(amplitude/COUNTS_PER_MM+0.5));
-      M5.Lcd.setCursor(130,216);
-      M5.Lcd.printf("f:%.1f",freq);
+      writeParam(2, "SIN", true);
       break;
 
-    case 1:
-      direction ? amplitude -= encoder_increment * AINCREMENT * COUNTS_PER_MM : amplitude += encoder_increment * AINCREMENT * COUNTS_PER_MM;
-      M5.Lcd.setCursor(140,178);
-      M5.Lcd.printf("SIN");
-      M5.Lcd.setTextColor(WHITE, HLCOLOR);
-      M5.Lcd.setCursor(130,197);
-      M5.Lcd.printf("a:%d  ",int(amplitude/COUNTS_PER_MM+0.5));
-      M5.Lcd.setTextColor(WHITE, BGCOLOR);
-      M5.Lcd.setCursor(130,216);
-      M5.Lcd.printf("f:%.1f",freq);
+    case 1: //case 0 exit state
+      writeParam(2, "SIN", false);
+      PARAMSTATE = 2;
       break;
 
     case 2:
-      direction ? freq -= encoder_increment * FINCREMENT : freq += encoder_increment * FINCREMENT;
-      M5.Lcd.setCursor(140,178);
-      M5.Lcd.printf("SIN");
-      M5.Lcd.setCursor(130,197);
-      M5.Lcd.printf("a:%d  ",int(amplitude/COUNTS_PER_MM+0.5));
-      M5.Lcd.setTextColor(WHITE, HLCOLOR);
-      M5.Lcd.setCursor(130,216);
-      M5.Lcd.printf("f:%.1f",freq);
-      M5.Lcd.setTextColor(WHITE, BGCOLOR);
+      direction ? a1 -= encoder_increment * AINCREMENT * COUNTS_PER_MM : a1 += encoder_increment * AINCREMENT * COUNTS_PER_MM;
+      h = sprintf(sBuffer,"a:%d",int(a1/COUNTS_PER_MM+0.5));
+      writeParam(3,sBuffer,true);
       break;
 
+    case 3: //case 2 exit state
+      h = sprintf(sBuffer,"a:%d ",int(a1/COUNTS_PER_MM+0.5));
+      writeParam(3,sBuffer,false);
+      PARAMSTATE = 4;
+      break;
+
+    case 4:
+      direction ? f1 -= encoder_increment * FINCREMENT : f1 += encoder_increment * FINCREMENT;
+      h = sprintf(sBuffer,"f:%.1f",f1);
+      writeParam(4,sBuffer,true);
+      break;
+
+    case 5: //case 4 exit state
+      h = sprintf(sBuffer,"f:%.1f ",f1);
+      writeParam(4,sBuffer,false);
+      PARAMSTATE = 0;
+      break;
+      
     default:
       PARAMSTATE = 0;
       break; 
   }
   
+}
+
+void writeParam(int nParam, char* paramString, bool hl) {
+  switch(nParam) {
+    case 0: //Column 1 waveform
+      hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
+      M5.Lcd.setCursor(60,178);
+      M5.Lcd.print(paramString);
+      break;
+
+    case 1: //Column 1 amplitude
+      hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
+      M5.Lcd.setCursor(50,197);
+      M5.Lcd.print(paramString);
+      break;
+
+    case 2: //Column 2 waveform
+      hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
+      M5.Lcd.setCursor(140,178);
+      M5.Lcd.print(paramString);
+      break;
+
+    case 3: //Column 2 amplitude
+      hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
+      M5.Lcd.setCursor(140,197);
+      M5.Lcd.print(paramString);
+      break;
+
+    case 4: //Column 2 freq
+      hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
+      M5.Lcd.setCursor(130,216);
+      M5.Lcd.print(paramString);
+      break;
+
+    case 5: //Column 3 waveform
+      hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
+      M5.Lcd.setCursor(220,178);
+      M5.Lcd.print(paramString);
+      break;
+
+    case 6: //Column 3 amplitude
+      hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
+      M5.Lcd.setCursor(230,197);
+      M5.Lcd.print(paramString);
+      break;
+
+    case 7: //Column 3 freq
+      hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
+      M5.Lcd.setCursor(230,216);
+      M5.Lcd.print(paramString);
+      break;
+  }
 }
