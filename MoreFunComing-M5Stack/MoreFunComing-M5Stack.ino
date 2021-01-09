@@ -190,12 +190,12 @@ void loop() {
   pos0 = constrain(pos0, PMIN, PMAX);
   
   theta1 += f1*(millis()-prevTick)/160.f; //to make freq transitions smooth
-  pos1 = round(a1*sin(theta1))+FSCOUNTS/2;
-  pos1 = constrain(pos1, PMIN, PMAX);
+  pos1 = round(a1*sin(theta1));
+  pos1 = constrain(pos1, -PMAX, PMAX);
   
   theta2 += f2*(millis()-prevTick)/160.f;
-  pos2 = round(a2*sin(f2*millis()/160.f))+FSCOUNTS/2;
-  pos2 = constrain(pos2, PMIN, PMAX);
+  pos2 = round(a2*sin(f2*millis()/160.f));
+  pos2 = constrain(pos2, -PMAX, PMAX);
 
   pos = pos0 + pos1 + pos2;
   pos = constrain(pos, PMIN, PMAX);
@@ -217,12 +217,14 @@ void loop() {
   M5.Lcd.fillRect(70, 30, 20, 140-round(140*pos0/FSCOUNTS), BLACK);
   
   //Middle Column
-  M5.Lcd.fillRect(150, 170-round(140*pos1/FSCOUNTS), 20, round(140*pos1/FSCOUNTS), WHITE);
-  M5.Lcd.fillRect(150, 30, 20, 140-round(140*pos1/FSCOUNTS), BLACK);
+  M5.Lcd.fillRect(150, 95-round(130*pos1/FSCOUNTS), 20, 10, WHITE);
+  M5.Lcd.fillRect(150, 30, 20, 65-round(130*pos1/FSCOUNTS), BLACK); //top bar
+  M5.Lcd.fillRect(150, 95-round(130*pos1/FSCOUNTS)+10, 20, 65+round(130*pos1/FSCOUNTS), BLACK); //bottom bar
 
-  //Middle Column
-  M5.Lcd.fillRect(230, 170-round(140*pos2/FSCOUNTS), 20, round(140*pos2/FSCOUNTS), WHITE);
-  M5.Lcd.fillRect(230, 30, 20, 140-round(140*pos2/FSCOUNTS), BLACK);
+  //Right Column
+  M5.Lcd.fillRect(230, 95-round(130*pos2/FSCOUNTS), 20, 10, WHITE);
+  M5.Lcd.fillRect(230, 30, 20, 65-round(130*pos2/FSCOUNTS), BLACK); //top bar
+  M5.Lcd.fillRect(230, 95-round(130*pos2/FSCOUNTS)+10, 20, 65+round(130*pos2/FSCOUNTS), BLACK); //bottom bar
   
   
 
@@ -265,7 +267,7 @@ void loop() {
       break;
 
     case 5: //case 4 exit state
-      h = sprintf(sBuffer,"f:%.1f ",f1);
+      h = sprintf(sBuffer,"f:%.1f  ",f1);
       writeParam(4,sBuffer,false);
       PARAMSTATE = 0;
       break;
