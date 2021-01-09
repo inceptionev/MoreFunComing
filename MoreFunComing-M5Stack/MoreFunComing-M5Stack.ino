@@ -11,6 +11,15 @@
 
 #define Faces_Encoder_I2C_ADDR     0X5E
 
+//limits
+#define AMIN 0
+#define AMAX 14000
+#define FMIN 0.1
+#define FMAX 60
+#define PMIN 156
+#define PMAX 28000
+
+
 //process variables
 int prevTick = 0;
 int pos = 0;
@@ -20,12 +29,11 @@ int pos2 = 0;
 int a0 = 0;
 int a1 = 0;
 int a2 = 0;
-float f0 = 0;
-float f1 = 0;
-float f2 = 0;
+float f0 = 0.1;
+float f1 = 0.1;
+float f2 = 0.1;
 char sBuffer[10];
 int h = 0;
-
 
 //state variables
 int PARAMSTATE = 0;
@@ -140,15 +148,27 @@ void setup() {
   M5.Lcd.printf("More Fun Coming");
   M5.Lcd.setTextColor(WHITE, BGCOLOR);
 
+  //Fixed Text
+  M5.Lcd.setCursor(10,178);
+  M5.Lcd.print("OUT");
+  M5.Lcd.setCursor(50,92);
+  M5.Lcd.print("=");
+  M5.Lcd.setCursor(120,92);
+  M5.Lcd.print("+");
+  M5.Lcd.setCursor(200,92);
+  M5.Lcd.print("+");
+
+  
+
   //Parameter Display
   writeParam(0,"POS",false);
   writeParam(1,"a:0",false);
   writeParam(2,"SIN",false);
   writeParam(3,"a:0",false);
-  writeParam(4,"f:0.0",false);
+  writeParam(4,"f:0.1",false);
   writeParam(5,"SIN",false);
   writeParam(6,"a:0",false);
-  writeParam(7,"f:0.0",false);
+  writeParam(7,"f:0.1",false);
   
   //timer
   prevTick = millis();
@@ -165,10 +185,14 @@ void loop() {
 
   //pos = round(amplitude*sin(millis()/160.f))+127; // + round(16*sin(millis()/10.f));
   pos0 = a0;
+  pos0 = constrain(pos0, PMIN, PMAX);
   pos1 = round(a1*sin(f1*millis()/160.f))+FSCOUNTS/2;
+  pos1 = constrain(pos1, PMIN, PMAX);
   pos2 = round(a2*sin(f2*millis()/160.f))+FSCOUNTS/2;
+  pos2 = constrain(pos2, PMIN, PMAX);
 
   pos = pos0 + pos1 + pos2;
+  pos = constrain(pos, PMIN, PMAX);
 
   //dacWrite(G26, pos);
   Serial2.printf("s r0xca %d\rt 1\r", pos); //send position
@@ -214,18 +238,20 @@ void loop() {
 
     case 2:
       direction ? a1 -= encoder_increment * AINCREMENT * COUNTS_PER_MM : a1 += encoder_increment * AINCREMENT * COUNTS_PER_MM;
-      h = sprintf(sBuffer,"a:%d",int(a1/COUNTS_PER_MM+0.5));
+      a1 = constrain(a1, AMIN, AMAX);
+      h = sprintf(sBuffer,"a:%d ",int(a1/COUNTS_PER_MM+0.5));
       writeParam(3,sBuffer,true);
       break;
 
     case 3: //case 2 exit state
-      h = sprintf(sBuffer,"a:%d ",int(a1/COUNTS_PER_MM+0.5));
+      h = sprintf(sBuffer,"a:%d  ",int(a1/COUNTS_PER_MM+0.5));
       writeParam(3,sBuffer,false);
       PARAMSTATE = 4;
       break;
 
     case 4:
       direction ? f1 -= encoder_increment * FINCREMENT : f1 += encoder_increment * FINCREMENT;
+      f1 = constrain(f1, FMIN, FMAX);
       h = sprintf(sBuffer,"f:%.1f",f1);
       writeParam(4,sBuffer,true);
       break;
@@ -247,19 +273,19 @@ void writeParam(int nParam, char* paramString, bool hl) {
   switch(nParam) {
     case 0: //Column 1 waveform
       hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
-      M5.Lcd.setCursor(60,178);
+      M5.Lcd.setCursor(63,178);
       M5.Lcd.print(paramString);
       break;
 
     case 1: //Column 1 amplitude
       hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
-      M5.Lcd.setCursor(50,197);
+      M5.Lcd.setCursor(60,197);
       M5.Lcd.print(paramString);
       break;
 
     case 2: //Column 2 waveform
       hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
-      M5.Lcd.setCursor(140,178);
+      M5.Lcd.setCursor(143,178);
       M5.Lcd.print(paramString);
       break;
 
@@ -277,19 +303,19 @@ void writeParam(int nParam, char* paramString, bool hl) {
 
     case 5: //Column 3 waveform
       hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
-      M5.Lcd.setCursor(220,178);
+      M5.Lcd.setCursor(223,178);
       M5.Lcd.print(paramString);
       break;
 
     case 6: //Column 3 amplitude
       hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
-      M5.Lcd.setCursor(230,197);
+      M5.Lcd.setCursor(220,197);
       M5.Lcd.print(paramString);
       break;
 
     case 7: //Column 3 freq
       hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
-      M5.Lcd.setCursor(230,216);
+      M5.Lcd.setCursor(210,216);
       M5.Lcd.print(paramString);
       break;
   }
