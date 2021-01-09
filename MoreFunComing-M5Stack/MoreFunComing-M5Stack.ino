@@ -250,14 +250,14 @@ void loop() {
       break;
 
     case 4:
-      direction ? f1 -= encoder_increment * FINCREMENT : f1 += encoder_increment * FINCREMENT;
+      direction ? f1 -= encoder_increment * (f1 < 3 ? 1 : 10) * FINCREMENT : f1 += encoder_increment * (f1 < 2.9 ? 1 : 10) * FINCREMENT; //something weird with < here, 3 should work
       f1 = constrain(f1, FMIN, FMAX);
-      h = sprintf(sBuffer,"f:%.1f",f1);
+      h = sprintf(sBuffer,"f:%.1f ",f1);
       writeParam(4,sBuffer,true);
       break;
 
     case 5: //case 4 exit state
-      h = sprintf(sBuffer,"f:%.1f ",f1);
+      h = sprintf(sBuffer,"f:%.1f  ",f1);
       writeParam(4,sBuffer,false);
       PARAMSTATE = 0;
       break;
