@@ -39,7 +39,10 @@ int h = 0;
 
 //state variables
 int PARAMSTATE = 0;
-int WAVESTATE = 0;
+int PARAMOFFSET = 0;
+bool lastPressedA = false;
+bool lastPressedB = false;
+bool lastPressedC = false;
 
 int encoder_increment;//positive: clockwise nagtive: anti-clockwise
 int encoder_value=0;
@@ -194,7 +197,7 @@ void loop() {
   pos1 = constrain(pos1, -PMAX, PMAX);
   
   theta2 += f2*(millis()-prevTick)/160.f;
-  pos2 = round(a2*sin(f2*millis()/160.f));
+  pos2 = round(a2*sin(theta2));
   pos2 = constrain(pos2, -PMAX, PMAX);
 
   pos = pos0 + pos1 + pos2;
@@ -209,28 +212,54 @@ void loop() {
   prevTick = millis();
 
   //Total Column
-  M5.Lcd.fillRect(20, 170-round(140*pos/FSCOUNTS), 20, round(140*pos/FSCOUNTS), WHITE);
-  M5.Lcd.fillRect(20, 30, 20, 140-round(140*pos/FSCOUNTS), BLACK);
+  M5.Lcd.fillRect(20, 160-round(130*pos/FSCOUNTS), 20, round(130*pos/FSCOUNTS)+10, WHITE);
+  M5.Lcd.fillRect(20, 30, 20, 130-round(130*pos/FSCOUNTS), BLACK);
   
-  //Left Column
-  M5.Lcd.fillRect(70, 170-round(140*pos0/FSCOUNTS), 20, round(140*pos0/FSCOUNTS), WHITE);
-  M5.Lcd.fillRect(70, 30, 20, 140-round(140*pos0/FSCOUNTS), BLACK);
+  //Column A
+  M5.Lcd.fillRect(70, 160-round(130*pos0/FSCOUNTS), 20, 10, WHITE);
+  M5.Lcd.fillRect(70, 30, 20, 130-round(130*pos0/FSCOUNTS), BLACK); //top bar
+  M5.Lcd.fillRect(70, 160-round(130*pos0/FSCOUNTS)+10, 20, round(130*pos0/FSCOUNTS), BLACK); //bottom bar
   
-  //Middle Column
+  //Column B
   M5.Lcd.fillRect(150, 95-round(130*pos1/FSCOUNTS), 20, 10, WHITE);
   M5.Lcd.fillRect(150, 30, 20, 65-round(130*pos1/FSCOUNTS), BLACK); //top bar
   M5.Lcd.fillRect(150, 95-round(130*pos1/FSCOUNTS)+10, 20, 65+round(130*pos1/FSCOUNTS), BLACK); //bottom bar
 
-  //Right Column
+  //Column C
   M5.Lcd.fillRect(230, 95-round(130*pos2/FSCOUNTS), 20, 10, WHITE);
   M5.Lcd.fillRect(230, 30, 20, 65-round(130*pos2/FSCOUNTS), BLACK); //top bar
   M5.Lcd.fillRect(230, 95-round(130*pos2/FSCOUNTS)+10, 20, 65+round(130*pos2/FSCOUNTS), BLACK); //bottom bar
+
+  M5.update(); //read buttons
+  if(lastPressedA == true) {
+    PARAMSTATE = 0;
+    lastPressedA = false;
+   }
+   if(lastPressedB == true) {
+    PARAMSTATE = 2;
+    lastPressedB = false;
+   }
+   if(lastPressedC == true) {
+    PARAMSTATE = 8;
+    lastPressedC = false;
+   }
+  if(M5.BtnA.wasPressed() == 1) { 
+     PARAMSTATE++; //proper exit state
+     lastPressedA = true;
+  }
+  if(M5.BtnB.wasPressed() == 1) { 
+     PARAMSTATE++; //proper exit state
+     lastPressedB = true;
+  }
+  if(M5.BtnC.wasPressed() == 1) { 
+     PARAMSTATE++; //proper exit state
+     lastPressedC = true;
+  }
   
   
 
   if (cur_button == 0 && last_button == 1) {
-    PARAMSTATE++;
-    PARAMSTATE = PARAMSTATE % 6;
+   PARAMSTATE++;
   }
   last_button = cur_button;
 
@@ -238,38 +267,86 @@ void loop() {
   
   switch(PARAMSTATE) {
     case 0:
+      direction ? a0 -= encoder_increment * AINCREMENT * COUNTS_PER_MM : a0 += encoder_increment * AINCREMENT * COUNTS_PER_MM;
+      a0 = constrain(a0, PMIN, PMAX);
+      h = sprintf(sBuffer,"a:%d ",int(a0/COUNTS_PER_MM+0.5));
+      writeParam(1,sBuffer,true);
+      break;
+
+    case 1: //case 0 exit state - this just returns to state 0 since there are no other options in offset 0.
+      h = sprintf(sBuffer,"a:%d  ",int(a0/COUNTS_PER_MM+0.5));
+      writeParam(1,sBuffer,false);
+      PARAMSTATE = 0;
+      break;
+      
+    case 2:
       writeParam(2, "SIN", true);
       break;
 
-    case 1: //case 0 exit state
+    case 3: //case 2 exit state
       writeParam(2, "SIN", false);
-      PARAMSTATE = 2;
+      PARAMSTATE = 4;
       break;
 
-    case 2:
+    case 4:
       direction ? a1 -= encoder_increment * AINCREMENT * COUNTS_PER_MM : a1 += encoder_increment * AINCREMENT * COUNTS_PER_MM;
       a1 = constrain(a1, AMIN, AMAX);
       h = sprintf(sBuffer,"a:%d ",int(a1/COUNTS_PER_MM+0.5));
       writeParam(3,sBuffer,true);
       break;
 
-    case 3: //case 2 exit state
+    case 5: //case 4 exit state
       h = sprintf(sBuffer,"a:%d  ",int(a1/COUNTS_PER_MM+0.5));
       writeParam(3,sBuffer,false);
-      PARAMSTATE = 4;
+      PARAMSTATE = 6;
       break;
 
-    case 4:
+    case 6:
       direction ? f1 -= encoder_increment * (f1 < 3 ? 1 : 10) * FINCREMENT : f1 += encoder_increment * (f1 < 2.9 ? 1 : 10) * FINCREMENT; //something weird with < here, 3 should work
       f1 = constrain(f1, FMIN, FMAX);
       h = sprintf(sBuffer,"f:%.1f ",f1);
       writeParam(4,sBuffer,true);
       break;
 
-    case 5: //case 4 exit state
+    case 7: //case 6 exit state
       h = sprintf(sBuffer,"f:%.1f  ",f1);
       writeParam(4,sBuffer,false);
-      PARAMSTATE = 0;
+      PARAMSTATE = 2;  //goes back to first param in this offset
+      break;
+
+    case 8:
+      writeParam(5, "SIN", true);
+      break;
+
+    case 9: //case 8 exit state
+      writeParam(5, "SIN", false);
+      PARAMSTATE = 10;
+      break;
+
+    case 10:
+      direction ? a2 -= encoder_increment * AINCREMENT * COUNTS_PER_MM : a2 += encoder_increment * AINCREMENT * COUNTS_PER_MM;
+      a2 = constrain(a2, AMIN, AMAX);
+      h = sprintf(sBuffer,"a:%d ",int(a2/COUNTS_PER_MM+0.5));
+      writeParam(6,sBuffer,true);
+      break;
+
+    case 11: //case 10 exit state
+      h = sprintf(sBuffer,"a:%d  ",int(a2/COUNTS_PER_MM+0.5));
+      writeParam(6,sBuffer,false);
+      PARAMSTATE = 12;
+      break;
+
+    case 12:
+      direction ? f2 -= encoder_increment * (f2 < 3 ? 1 : 10) * FINCREMENT : f2 += encoder_increment * (f2 < 2.9 ? 1 : 10) * FINCREMENT; //something weird with < here, 3 should work
+      f2 = constrain(f2, FMIN, FMAX);
+      h = sprintf(sBuffer,"f:%.1f ",f2);
+      writeParam(7,sBuffer,true);
+      break;
+
+    case 13: //case 6 exit state
+      h = sprintf(sBuffer,"f:%.1f  ",f2);
+      writeParam(7,sBuffer,false);
+      PARAMSTATE = 8;  //goes back to first param in this offset
       break;
       
     default:
