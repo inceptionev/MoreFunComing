@@ -2,6 +2,17 @@
 #include <WiFi.h>
 #include <esp_now.h>
 
+//Change this per controller!
+#define CONTROLLER_ID 1
+
+//Change this to match the controller in the Driver!
+#define DRIVERADDR {0xB4, 0xE6, 0x2D, 0xF9, 0xF3, 0xB1}
+
+//K00201900: A4:CF:12:6D:7A:E4
+//K00201226
+//K00201864: B4:E6:2D:F9:F3:B1
+
+//Program defines
 #define SDLY 500
 #define CDLY 2
 #define BGCOLOR DARKCYAN
@@ -10,7 +21,7 @@
 #define COUNTS_PER_MM 156
 #define FINCREMENT 0.1
 #define AINCREMENT 2 //in mm
-#define DRIVERADDR {0xB4, 0xE6, 0x2D, 0xF9, 0xF3, 0xB1}
+
 
 #define Faces_Encoder_I2C_ADDR     0X5E
 
@@ -46,6 +57,9 @@ int PARAMOFFSET = 0;
 bool lastPressedA = false;
 bool lastPressedB = false;
 bool lastPressedC = false;
+bool transitionA = false;
+bool transitionB = false;
+bool transitionC = false;
 
 int encoder_increment;//positive: clockwise nagtive: anti-clockwise
 int encoder_value=0;
@@ -56,47 +70,27 @@ uint8_t last_button, cur_button;
 uint8_t driverAddress[] = DRIVERADDR;
 
 typedef struct struct_message {
-  int a0;
-  int a1;
-  float f1;
-  int a2;
-  float f2;
+  int id;
+  int pos;
 } struct_message;
 
 struct_message funMsg;
 
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  
-}
-
-void GetValue(void){
-    int temp_encoder_increment;
-
-    Wire.requestFrom(Faces_Encoder_I2C_ADDR, 3);
-    if(Wire.available()){
-       temp_encoder_increment = Wire.read();
-       cur_button = Wire.read();
-    }
-    if(temp_encoder_increment > 127){//anti-clockwise
-        direction = 1;
-        encoder_increment = 256 - temp_encoder_increment;
-    }
-    else{
-        direction = 0;
-        encoder_increment = temp_encoder_increment;
-    }
-}
-
-void Led(int i, int r, int g, int b){
-    Wire.beginTransmission(Faces_Encoder_I2C_ADDR);
-    Wire.write(i);
-    Wire.write(r);
-    Wire.write(g);
-    Wire.write(b);
-    Wire.endTransmission();
-}
-
 void setup() {
+  
+  M5.begin();
+  M5.Power.begin();
+  
+  //Splash Screen
+  M5.Lcd.setTextSize(2);
+  M5.Lcd.fillScreen(BGCOLOR);
+  M5.Lcd.setTextColor(WHITE, BGCOLOR);
+  M5.Lcd.setCursor(70,90);
+  M5.Lcd.printf("More Fun Coming");
+  M5.Lcd.setCursor(120,120);
+  M5.Lcd.setTextSize(1);
+  M5.Lcd.printf("Connecting...");
+  M5.Lcd.fillRect(78, 138, 164, 24, BLACK);
 
   WiFi.mode(WIFI_STA);
   esp_now_init();
@@ -107,69 +101,10 @@ void setup() {
   peerInfo.encrypt = false;
   esp_now_add_peer(&peerInfo);
   
-  M5.begin();
-  M5.Power.begin();
-  Serial2.begin(9600, SERIAL_8N1, 16, 17);
-  dacWrite(G26, 0);
-
-  //graphics
-  M5.Lcd.setTextSize(2);
-  M5.Lcd.fillScreen(BGCOLOR);
-  M5.Lcd.setTextColor(WHITE, BGCOLOR);
-  M5.Lcd.setCursor(70,90);
-  M5.Lcd.printf("More Fun Coming");
-  M5.Lcd.setCursor(80,120);
-  M5.Lcd.setTextSize(1);
-  M5.Lcd.printf("Initializing Servo Drive...");
-  M5.Lcd.fillRect(78, 138, 164, 24, BLACK);
-
-  //setup servo drive
-  
-  delay(1000); //wait for Xenus to boot up
-  M5.Lcd.fillRect(80, 140, 20, 20, BGCOLOR);
-  delay(1000); //wait for Xenus to boot up
-  M5.Lcd.fillRect(80, 140, 40, 20, BGCOLOR);
-  delay(1000); //wait for Xenus to boot up
-  M5.Lcd.fillRect(80, 140, 60, 20, BGCOLOR);
-  delay(1000); //wait for Xenus to boot up
-  M5.Lcd.fillRect(80, 140, 80, 20, BGCOLOR);
-  
-  Serial2.print(F("s r0x90 115200\r")); //set Accelnet baud rate
-  delay(SDLY);
-  Serial2.begin(115200); //switch to 115200 baud rate
-  Serial2.print(F("s r0x24 21\r")); //Enable in trajectory generator position mode
-  delay(CDLY);
-  Serial2.print(F("t 2\r")); // home in current position
-  
-  delay(1000); //wait for home to complete
-  M5.Lcd.fillRect(80, 140, 100, 20, BGCOLOR);
-  delay(1000); //wait for home to complete
-  M5.Lcd.fillRect(80, 140, 120, 20, BGCOLOR);
-  delay(1000); //wait for home to complete
-  M5.Lcd.fillRect(80, 140, 140, 20, BGCOLOR);
-  delay(1000); //wait for home to complete
-  M5.Lcd.fillRect(80, 140, 160, 20, BGCOLOR);
-  
-  Serial2.print(F("s r0xc8 0\r")); //absolute position, trapezoidal profile  
-  delay(CDLY);
-  Serial2.print(F("s r0xca 1500\r")); //absolute position, trapezoidal profile  
-  delay(CDLY);
-  Serial2.print(F("t 1\r"));
-
-  /*
-  Serial2.print(F("s r0x19 84840\r")); //set analog input scaling
-  delay(CDLY);
-  Serial2.print(F("s r0xcb 7343750\r")); //set max velocity
-  delay(CDLY);
-  Serial2.print(F("s r0xcc 367187\r")); //set acceleration
-  delay(CDLY);
-  Serial2.print(F("s r0xcd 367187\r")); //set deceleration
-  delay(CDLY);
-  Serial2.print(F("s r0x24 22\r")); //set analog position command mode
-  delay(CDLY);
-  Serial2.print(F("t 1\r")); //execute command
-  delay(CDLY);
-  */
+  for(int k=0; k < 20; k++) {
+    M5.Lcd.fillRect(80, 140, k*8, 20, BGCOLOR);
+    delay(100);
+  }
 
   //Begin Main program UI
   M5.Lcd.clear(BGCOLOR);
@@ -192,8 +127,6 @@ void setup() {
   M5.Lcd.setCursor(200,92);
   M5.Lcd.print("+");
 
-  
-
   //Parameter Display
   writeParam(0,"POS",false);
   writeParam(1,"a:0",false);
@@ -210,14 +143,7 @@ void setup() {
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-     
-  //amplitude = encoder_value * 8;
-  //amplitude = encoder_value * 5 * COUNTS_PER_MM;  //5mm per index
 
-  //freq = 20;
-
-  //pos = round(amplitude*sin(millis()/160.f))+127; // + round(16*sin(millis()/10.f));
   pos0 = a0;
   pos0 = constrain(pos0, PMIN, PMAX);
   
@@ -232,15 +158,9 @@ void loop() {
   pos = pos0 + pos1 + pos2;
   pos = constrain(pos, PMIN, PMAX);
 
-  //dacWrite(G26, pos);
-  Serial2.printf("s r0xca %d\rt 1\r", pos); //send position
-
   //Send Controller State
-  funMsg.a0 = a0;
-  funMsg.a1 = a1;
-  funMsg.f1 = f1;
-  funMsg.a2 = a2;
-  funMsg.f2 = f2;
+  funMsg.id = CONTROLLER_ID;
+  funMsg.pos = pos;
   esp_now_send(driverAddress, (uint8_t *) &funMsg, sizeof(funMsg));
 
   //display current cycle time
@@ -268,33 +188,47 @@ void loop() {
   M5.Lcd.fillRect(230, 95-round(130*pos2/FSCOUNTS)+10, 20, 65+round(130*pos2/FSCOUNTS), BLACK); //bottom bar
 
   M5.update(); //read buttons
-  if(lastPressedA == true) {
+  if(transitionA == true) {
     PARAMSTATE = 0;
-    lastPressedA = false;
+    transitionA = false;
    }
-   if(lastPressedB == true) {
+   if(transitionB == true) {
     PARAMSTATE = 2;
-    lastPressedB = false;
+    transitionB = false;
    }
-   if(lastPressedC == true) {
+   if(transitionC == true) {
     PARAMSTATE = 8;
-    lastPressedC = false;
+    transitionC = false;
    }
+   
   if(M5.BtnA.wasPressed() == 1) { 
      PARAMSTATE++; //proper exit state
+     if (!lastPressedA) {
+      transitionA = true;
+     }
      lastPressedA = true;
+     lastPressedB = false;
+     lastPressedC = false;
   }
   if(M5.BtnB.wasPressed() == 1) { 
      PARAMSTATE++; //proper exit state
+     if (!lastPressedB) {
+      transitionB = true;
+     }
      lastPressedB = true;
+     lastPressedC = false;
+     lastPressedA = false;
   }
   if(M5.BtnC.wasPressed() == 1) { 
      PARAMSTATE++; //proper exit state
+     if (!lastPressedC) {
+      transitionC = true;
+     }
      lastPressedC = true;
+     lastPressedA = false;
+     lastPressedB = false;
   }
   
-  
-
   if (cur_button == 0 && last_button == 1) {
    PARAMSTATE++;
   }
@@ -443,4 +377,35 @@ void writeParam(int nParam, char* paramString, bool hl) {
       M5.Lcd.print(paramString);
       break;
   }
+}
+
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+  
+}
+
+void GetValue(void){
+    int temp_encoder_increment;
+
+    Wire.requestFrom(Faces_Encoder_I2C_ADDR, 3);
+    if(Wire.available()){
+       temp_encoder_increment = Wire.read();
+       cur_button = Wire.read();
+    }
+    if(temp_encoder_increment > 127){//anti-clockwise
+        direction = 1;
+        encoder_increment = 256 - temp_encoder_increment;
+    }
+    else{
+        direction = 0;
+        encoder_increment = temp_encoder_increment;
+    }
+}
+
+void Led(int i, int r, int g, int b){
+    Wire.beginTransmission(Faces_Encoder_I2C_ADDR);
+    Wire.write(i);
+    Wire.write(r);
+    Wire.write(g);
+    Wire.write(b);
+    Wire.endTransmission();
 }
