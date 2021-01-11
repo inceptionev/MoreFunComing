@@ -3,7 +3,7 @@
 #include <esp_now.h>
 
 //Change this per controller!
-#define CONTROLLER_ID 1
+#define CONTROLLER_ID 2
 
 //Change this to match the controller in the Driver!
 #define DRIVERADDR {0xB4, 0xE6, 0x2D, 0xF9, 0xF3, 0xB1}
