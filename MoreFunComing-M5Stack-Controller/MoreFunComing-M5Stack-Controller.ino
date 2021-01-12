@@ -240,12 +240,14 @@ void loop() {
     case 0:
       direction ? a0 -= encoder_increment * AINCREMENT * COUNTS_PER_MM : a0 += encoder_increment * AINCREMENT * COUNTS_PER_MM;
       a0 = constrain(a0, PMIN, PMAX);
-      h = sprintf(sBuffer,"a:%d ",int(a0/COUNTS_PER_MM+0.5));
+      //this makes the extra text clear properly when going from a longer string to a shorter one
+      (int(a0/COUNTS_PER_MM+0.5) < 100) ? sprintf(sBuffer,"a:%d ",int(a0/COUNTS_PER_MM+0.5)) : sprintf(sBuffer,"a:%d",int(a0/COUNTS_PER_MM+0.5)); 
       writeParam(1,sBuffer,true);
       break;
 
     case 1: //case 0 exit state - this just returns to state 0 since there are no other options in offset 0.
-      h = sprintf(sBuffer,"a:%d  ",int(a0/COUNTS_PER_MM+0.5));
+      //this makes the extra text clear properly when going from a longer string to a shorter one
+      (int(a0/COUNTS_PER_MM+0.5) < 10) ? sprintf(sBuffer,"a:%d  ",int(a0/COUNTS_PER_MM+0.5)) : sprintf(sBuffer,"a:%d ",int(a0/COUNTS_PER_MM+0.5));
       writeParam(1,sBuffer,false);
       PARAMSTATE = 0;
       break;
@@ -262,12 +264,14 @@ void loop() {
     case 4:
       direction ? a1 -= encoder_increment * AINCREMENT * COUNTS_PER_MM : a1 += encoder_increment * AINCREMENT * COUNTS_PER_MM;
       a1 = constrain(a1, AMIN, AMAX);
-      h = sprintf(sBuffer,"a:%d ",int(a1/COUNTS_PER_MM+0.5));
+      //this makes the extra text clear properly when going from a longer string to a shorter one
+      (int(a1/COUNTS_PER_MM+0.5) < 10) ? sprintf(sBuffer,"a:%d ",int(a1/COUNTS_PER_MM+0.5)) : sprintf(sBuffer,"a:%d",int(a1/COUNTS_PER_MM+0.5));
       writeParam(3,sBuffer,true);
       break;
 
     case 5: //case 4 exit state
-      h = sprintf(sBuffer,"a:%d  ",int(a1/COUNTS_PER_MM+0.5));
+      //this makes the extra text clear properly when going from a longer string to a shorter one
+      (int(a1/COUNTS_PER_MM+0.5) < 10) ? sprintf(sBuffer,"a:%d ",int(a1/COUNTS_PER_MM+0.5)) : sprintf(sBuffer,"a:%d",int(a1/COUNTS_PER_MM+0.5));
       writeParam(3,sBuffer,false);
       PARAMSTATE = 6;
       break;
@@ -275,12 +279,14 @@ void loop() {
     case 6:
       direction ? f1 -= encoder_increment * (f1 < 3 ? 1 : 10) * FINCREMENT : f1 += encoder_increment * (f1 < 2.9 ? 1 : 10) * FINCREMENT; //something weird with < here, 3 should work
       f1 = constrain(f1, FMIN, FMAX);
-      h = sprintf(sBuffer,"f:%.1f ",f1);
+      //this makes the extra text clear properly when going from a longer string to a shorter one
+      (f1 < 9.f) ? sprintf(sBuffer,"f:%.1f ",f1) : sprintf(sBuffer,"f:%.1f",f1); //whyyy doesn't f1 < 10 work?? 10 < 10 should be false.
       writeParam(4,sBuffer,true);
       break;
 
     case 7: //case 6 exit state
-      h = sprintf(sBuffer,"f:%.1f  ",f1);
+      //this makes the extra text clear properly when going from a longer string to a shorter one
+      (f1 < 9.f) ? sprintf(sBuffer,"f:%.1f ",f1) : sprintf(sBuffer,"f:%.1f",f1); //whyyy doesn't f1 < 10 work?? 10 < 10 should be false.
       writeParam(4,sBuffer,false);
       PARAMSTATE = 2;  //goes back to first param in this offset
       break;
@@ -297,12 +303,14 @@ void loop() {
     case 10:
       direction ? a2 -= encoder_increment * AINCREMENT * COUNTS_PER_MM : a2 += encoder_increment * AINCREMENT * COUNTS_PER_MM;
       a2 = constrain(a2, AMIN, AMAX);
-      h = sprintf(sBuffer,"a:%d ",int(a2/COUNTS_PER_MM+0.5));
+      //this makes the extra text clear properly when going from a longer string to a shorter one
+      (int(a2/COUNTS_PER_MM+0.5) < 10) ? sprintf(sBuffer,"a:%d ",int(a2/COUNTS_PER_MM+0.5)) : sprintf(sBuffer,"a:%d",int(a2/COUNTS_PER_MM+0.5));
       writeParam(6,sBuffer,true);
       break;
 
     case 11: //case 10 exit state
-      h = sprintf(sBuffer,"a:%d  ",int(a2/COUNTS_PER_MM+0.5));
+      //this makes the extra text clear properly when going from a longer string to a shorter one
+      (int(a2/COUNTS_PER_MM+0.5) < 10) ? sprintf(sBuffer,"a:%d ",int(a2/COUNTS_PER_MM+0.5)) : sprintf(sBuffer,"a:%d",int(a2/COUNTS_PER_MM+0.5));
       writeParam(6,sBuffer,false);
       PARAMSTATE = 12;
       break;
@@ -310,12 +318,14 @@ void loop() {
     case 12:
       direction ? f2 -= encoder_increment * (f2 < 3 ? 1 : 10) * FINCREMENT : f2 += encoder_increment * (f2 < 2.9 ? 1 : 10) * FINCREMENT; //something weird with < here, 3 should work
       f2 = constrain(f2, FMIN, FMAX);
-      h = sprintf(sBuffer,"f:%.1f ",f2);
+      //this makes the extra text clear properly when going from a longer string to a shorter one
+      (f2 < 9.f) ? sprintf(sBuffer,"f:%.1f ",f2) : sprintf(sBuffer,"f:%.1f",f2); //whyyy doesn't f1 < 10 work?? 10 < 10 should be false.
       writeParam(7,sBuffer,true);
       break;
 
-    case 13: //case 6 exit state
-      h = sprintf(sBuffer,"f:%.1f  ",f2);
+    case 13: //case 12 exit state
+      //this makes the extra text clear properly when going from a longer string to a shorter one
+      (f2 < 9.f) ? sprintf(sBuffer,"f:%.1f ",f2) : sprintf(sBuffer,"f:%.1f",f2); //whyyy doesn't f1 < 10 work?? 10 < 10 should be false.
       writeParam(7,sBuffer,false);
       PARAMSTATE = 8;  //goes back to first param in this offset
       break;
