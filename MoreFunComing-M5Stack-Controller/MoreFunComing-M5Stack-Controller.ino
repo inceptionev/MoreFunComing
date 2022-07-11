@@ -1,9 +1,10 @@
-#include <M5Stack.h>
-#include <WiFi.h>
 #include <esp_now.h>
+#include <WiFi.h>
+#include <M5Stack.h>
+#include "Free_Fonts.h"
 
 //Change this per controller!
-#define CONTROLLER_ID 2
+#define CONTROLLER_ID 3
 
 //Change this to match the controller in the Driver!
 #define DRIVERADDR {0xB4, 0xE6, 0x2D, 0xF9, 0xF3, 0xB1}
@@ -21,6 +22,7 @@
 #define COUNTS_PER_MM 156
 #define FINCREMENT 0.1
 #define AINCREMENT 2 //in mm
+#define FUNFONT FF17
 
 
 #define Faces_Encoder_I2C_ADDR     0X5E
@@ -82,14 +84,13 @@ void setup() {
   M5.Power.begin();
   
   //Splash Screen
+  //M5.Lcd.setFreeFont(FUNFONT);
   M5.Lcd.setTextSize(2);
   M5.Lcd.fillScreen(BGCOLOR);
   M5.Lcd.setTextColor(WHITE, BGCOLOR);
-  M5.Lcd.setCursor(70,90);
-  M5.Lcd.printf("More Fun Coming");
-  M5.Lcd.setCursor(120,120);
+  M5.Lcd.drawString("More Fun Coming", 70, 90, GFXFF);
   M5.Lcd.setTextSize(1);
-  M5.Lcd.printf("Connecting...");
+  M5.Lcd.drawString("Connecting...", 120, 120, GFXFF);
   M5.Lcd.fillRect(78, 138, 164, 24, BLACK);
 
   WiFi.mode(WIFI_STA);
@@ -111,21 +112,16 @@ void setup() {
 
   //Title Block
   M5.Lcd.fillRect(0, 0, 320, 25, HLCOLOR);
-  M5.Lcd.setCursor(70,5);
   M5.Lcd.setTextSize(2);
   M5.Lcd.setTextColor(WHITE, HLCOLOR);
-  M5.Lcd.printf("More Fun Coming");
+  M5.Lcd.drawString("More Fun Coming", 70, 5, GFXFF);
   M5.Lcd.setTextColor(WHITE, BGCOLOR);
 
   //Fixed Text
-  M5.Lcd.setCursor(10,178);
-  M5.Lcd.print("OUT");
-  M5.Lcd.setCursor(50,92);
-  M5.Lcd.print("=");
-  M5.Lcd.setCursor(120,92);
-  M5.Lcd.print("+");
-  M5.Lcd.setCursor(200,92);
-  M5.Lcd.print("+");
+  M5.Lcd.drawString("OUT", 10,178, GFXFF);
+  M5.Lcd.drawString("=", 50,92, GFXFF);
+  M5.Lcd.drawString("+", 120,92, GFXFF);
+  M5.Lcd.drawString("+", 200,92, GFXFF);
 
   //Parameter Display
   writeParam(0,"POS",false);
@@ -164,8 +160,8 @@ void loop() {
   esp_now_send(driverAddress, (uint8_t *) &funMsg, sizeof(funMsg));
 
   //display current cycle time
-  M5.Lcd.setCursor(0,5);
-  M5.Lcd.printf("%d",millis()-prevTick);
+  sprintf(sBuffer, "%d", millis()-prevTick);
+  M5.Lcd.drawString(sBuffer, 0, 5, GFXFF);
   prevTick = millis();
 
   //Total Column
@@ -290,45 +286,6 @@ void loop() {
       writeParam(4,sBuffer,false);
       PARAMSTATE = 2;  //goes back to first param in this offset
       break;
-
-    case 8:
-      writeParam(5, "SIN", true);
-      break;
-
-    case 9: //case 8 exit state
-      writeParam(5, "SIN", false);
-      PARAMSTATE = 10;
-      break;
-
-    case 10:
-      direction ? a2 -= encoder_increment * AINCREMENT * COUNTS_PER_MM : a2 += encoder_increment * AINCREMENT * COUNTS_PER_MM;
-      a2 = constrain(a2, AMIN, AMAX);
-      //this makes the extra text clear properly when going from a longer string to a shorter one
-      (int(a2/COUNTS_PER_MM+0.5) < 10) ? sprintf(sBuffer,"a:%d ",int(a2/COUNTS_PER_MM+0.5)) : sprintf(sBuffer,"a:%d",int(a2/COUNTS_PER_MM+0.5));
-      writeParam(6,sBuffer,true);
-      break;
-
-    case 11: //case 10 exit state
-      //this makes the extra text clear properly when going from a longer string to a shorter one
-      (int(a2/COUNTS_PER_MM+0.5) < 10) ? sprintf(sBuffer,"a:%d ",int(a2/COUNTS_PER_MM+0.5)) : sprintf(sBuffer,"a:%d",int(a2/COUNTS_PER_MM+0.5));
-      writeParam(6,sBuffer,false);
-      PARAMSTATE = 12;
-      break;
-
-    case 12:
-      direction ? f2 -= encoder_increment * (f2 < 3 ? 1 : 10) * FINCREMENT : f2 += encoder_increment * (f2 < 2.9 ? 1 : 10) * FINCREMENT; //something weird with < here, 3 should work
-      f2 = constrain(f2, FMIN, FMAX);
-      //this makes the extra text clear properly when going from a longer string to a shorter one
-      (f2 < 9.f) ? sprintf(sBuffer,"f:%.1f ",f2) : sprintf(sBuffer,"f:%.1f",f2); //whyyy doesn't f1 < 10 work?? 10 < 10 should be false.
-      writeParam(7,sBuffer,true);
-      break;
-
-    case 13: //case 12 exit state
-      //this makes the extra text clear properly when going from a longer string to a shorter one
-      (f2 < 9.f) ? sprintf(sBuffer,"f:%.1f ",f2) : sprintf(sBuffer,"f:%.1f",f2); //whyyy doesn't f1 < 10 work?? 10 < 10 should be false.
-      writeParam(7,sBuffer,false);
-      PARAMSTATE = 8;  //goes back to first param in this offset
-      break;
       
     default:
       PARAMSTATE = 0;
@@ -341,50 +298,42 @@ void writeParam(int nParam, char* paramString, bool hl) {
   switch(nParam) {
     case 0: //Column 1 waveform
       hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
-      M5.Lcd.setCursor(63,178);
-      M5.Lcd.print(paramString);
+      M5.Lcd.drawString(paramString, 63, 178, GFXFF);
       break;
 
     case 1: //Column 1 amplitude
       hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
-      M5.Lcd.setCursor(60,197);
-      M5.Lcd.print(paramString);
+      M5.Lcd.drawString(paramString, 60, 197, GFXFF);
       break;
 
     case 2: //Column 2 waveform
       hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
-      M5.Lcd.setCursor(143,178);
-      M5.Lcd.print(paramString);
+      M5.Lcd.drawString(paramString, 143, 178, GFXFF);
       break;
 
     case 3: //Column 2 amplitude
       hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
-      M5.Lcd.setCursor(140,197);
-      M5.Lcd.print(paramString);
+      M5.Lcd.drawString(paramString, 140, 197, GFXFF);
       break;
 
     case 4: //Column 2 freq
       hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
-      M5.Lcd.setCursor(130,216);
-      M5.Lcd.print(paramString);
+      M5.Lcd.drawString(paramString, 130, 216, GFXFF);
       break;
 
     case 5: //Column 3 waveform
       hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
-      M5.Lcd.setCursor(223,178);
-      M5.Lcd.print(paramString);
+      M5.Lcd.drawString(paramString, 223, 178, GFXFF);
       break;
 
     case 6: //Column 3 amplitude
       hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
-      M5.Lcd.setCursor(220,197);
-      M5.Lcd.print(paramString);
+      M5.Lcd.drawString(paramString, 220, 197, GFXFF);
       break;
 
     case 7: //Column 3 freq
       hl ? M5.Lcd.setTextColor(WHITE, HLCOLOR) : M5.Lcd.setTextColor(WHITE, BGCOLOR);
-      M5.Lcd.setCursor(210,216);
-      M5.Lcd.print(paramString);
+      M5.Lcd.drawString(paramString, 210, 216, GFXFF);
       break;
   }
 }
@@ -419,3 +368,11 @@ void Led(int i, int r, int g, int b){
     Wire.write(b);
     Wire.endTransmission();
 }
+
+#ifndef LOAD_GLCD
+//ERROR_Please_enable_LOAD_GLCD_in_User_Setup
+#endif
+
+#ifndef LOAD_GFXFF
+ERROR_Please_enable_LOAD_GFXFF_in_User_Setup!
+#endif

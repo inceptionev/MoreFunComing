@@ -25,7 +25,9 @@
 //dynamic settings
 int safeMax = 0;
 int safeMin = 0;
-int numControllers = 1;
+int numPlayers = 1;
+#define MINPLAYERS 1
+#define MAXPLAYERS 3
 
 //process variables
 int prevTick = 0;
@@ -231,17 +233,22 @@ void setup() {
         break;
         
       case 2:
-        writeParam(2, "Players:", true);
+        direction ? numPlayers -= encoder_increment : numPlayers += encoder_increment;
+        numPlayers = constrain(numPlayers, MINPLAYERS, MAXPLAYERS);
+        sprintf(sBuffer,"Players:%d",numPlayers);
+        writeParam(2, sBuffer, true);
         break;
   
       case 3: //case 2 exit state
-        writeParam(2, "Players:", false);
+        sprintf(sBuffer,"Players:%d",numPlayers);
+        writeParam(2, sBuffer, false);
         PARAMSTATE = 4;
         break;
   
       case 4:
         direction ? a0 -= encoder_increment * AINCREMENT * COUNTS_PER_MM : a0 += encoder_increment * AINCREMENT * COUNTS_PER_MM;
         a0 = constrain(a0, PMIN, PMAX);
+        safeMax = a0;
         //this makes the extra text clear properly when going from a longer string to a shorter one
         (int(a0/COUNTS_PER_MM+0.5) < 100) ? sprintf(sBuffer,"max:%d ",int(a0/COUNTS_PER_MM+0.5)) : sprintf(sBuffer,"max:%d",int(a0/COUNTS_PER_MM+0.5)); 
         writeParam(3,sBuffer,true);
@@ -257,6 +264,7 @@ void setup() {
       case 6:
         direction ? a0 -= encoder_increment * AINCREMENT * COUNTS_PER_MM : a0 += encoder_increment * AINCREMENT * COUNTS_PER_MM;
         a0 = constrain(a0, PMIN, PMAX);
+        safeMin = a0;
         //this makes the extra text clear properly when going from a longer string to a shorter one
         (int(a0/COUNTS_PER_MM+0.5) < 100) ? sprintf(sBuffer,"min:%d ",int(a0/COUNTS_PER_MM+0.5)) : sprintf(sBuffer,"min:%d",int(a0/COUNTS_PER_MM+0.5)); 
         writeParam(4,sBuffer,true);
@@ -343,10 +351,14 @@ void setup() {
   M5.Lcd.print("1");
   M5.Lcd.drawRect(130, 180, 60, 60, WHITE);
   M5.Lcd.setCursor(145, 190);
-  M5.Lcd.print("2");
+  if (numPlayers > 1) {
+    M5.Lcd.print("2");
+  }
   M5.Lcd.drawRect(210, 180, 60, 60, WHITE);
   M5.Lcd.setCursor(225, 190);
-  M5.Lcd.print("3");
+  if (numPlayers > 2) {
+    M5.Lcd.print("3");
+  }
 
   M5.Lcd.setTextSize(2);
 
@@ -359,6 +371,8 @@ void setup() {
 void loop() {
   pos = pos0 + pos1 + pos2;
   pos = constrain(pos, PMIN, PMAX);
+  pos = map(pos, PMIN, PMAX, safeMin, safeMax);  //scale to dynamic safety limits
+  pos = constrain(pos, safeMin, safeMax); //extra safety
 
   Serial2.printf("s r0xca %d\rt 1\r", pos); //send position
 
